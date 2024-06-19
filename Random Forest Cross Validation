@@ -1,0 +1,51 @@
+#Random Forest Cross Validation
+
+rm(list = ls(all = TRUE))
+
+library(dplyr)
+library(ggplot2)
+library(caret)
+
+setwd("E:/DON_Pheno_Geno_Prediction/2021 Cross Validation")
+####################################################################################################
+#read data
+data <- read.table("Training_Set_2021_Phenomic_Prediction_All.csv", sep=",", header=TRUE)
+row.names(data)<-data[,1]; data = data[,-1]
+
+which(is.na(data), arr.ind = TRUE) #check which rows have missing data
+
+data <- data[complete.cases(data), ] #removes the rows with missing data
+
+nrow(data) #check the number of missing rows (so we can change the data partitioning)
+
+
+########################################################################
+set.seed(123)
+
+accuracy_results <- numeric(100)  # Vector to store accuracy results
+
+for (i in 1:100) {
+  train_index <- createDataPartition(y = data$DON, p = 0.8, list = FALSE)
+  
+  training_set <- data[train_index, ]
+  testing_set <- data[-train_index, ]
+  
+  mtry <- sqrt(ncol(training_set))
+  tunegrid <- expand.grid(.mtry = mtry)
+  
+  repeat_cv <- trainControl(method = 'repeatedcv', number = 5, repeats = 3)
+  
+  set.seed(123)
+  forest <- train(DON ~ ., data = training_set, method = 'rf', tuneGrid = tunegrid, trControl = repeat_cv)
+  
+  y_hats <- predict(object = forest, newdata = testing_set[, -1])
+  
+  accuracy_results[i] <- cor(y_hats, testing_set$DON)
+}
+
+mean_accuracy <- mean(accuracy_results)
+sd_accuracy <- sd(accuracy_results)
+
+mean_accuracy
+
+write.table(accuracy_results, "Accuracy_Phenomic_All_RandomForest_2021.csv", sep=",", row.names = F)
